@@ -26,8 +26,8 @@ jobs:
           # Use a maintained Node LTS version. Adjust to 20/22/24 based on your app compatibility.
           node-version: '22'
           cache: 'npm'
-          # ensure the cache keys are derived from the lockfiles present in the repo
-          cache-dependency-path: '**/package-lock.json'
+          cache-dependency-path: |
+            **/package-lock.json
 
       - name: Show environment
         run: |
@@ -37,17 +37,40 @@ jobs:
           pwd
           ls -la
 
-      - name: Install dependencies (supports npm/yarn/pnpm)
+      - name: Detect lockfile
+        id: detect-lock
         run: |
           if [ -f package-lock.json ]; then
-            echo "Lockfile found (package-lock.json) — running npm ci"
-            npm ci --silent
+            echo "found_lock=true" >> $GITHUB_OUTPUT
+            echo "lock=package-lock.json" >> $GITHUB_OUTPUT
           elif [ -f yarn.lock ]; then
-            echo "Lockfile found (yarn.lock) — running yarn install"
-            yarn install --frozen-lockfile --silent
+            echo "found_lock=true" >> $GITHUB_OUTPUT
+            echo "lock=yarn.lock" >> $GITHUB_OUTPUT
           elif [ -f pnpm-lock.yaml ]; then
-            echo "Lockfile found (pnpm-lock.yaml) — running pnpm install"
-            pnpm install --frozen-lockfile --silent
+            echo "found_lock=true" >> $GITHUB_OUTPUT
+            echo "lock=pnpm-lock.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "found_lock=false" >> $GITHUB_OUTPUT
+            echo "lock=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        run: |
+          echo "Lockfile detected: ${{ steps.detect-lock.outputs.lock }}"
+          if [ "${{ steps.detect-lock.outputs.found_lock }}" = "true" ]; then
+            if [ "${{ steps.detect-lock.outputs.lock }}" = "package-lock.json" ]; then
+              echo "Using npm ci"
+              npm ci --silent
+            elif [ "${{ steps.detect-lock.outputs.lock }}" = "yarn.lock" ]; then
+              echo "Using yarn install --frozen-lockfile"
+              yarn install --frozen-lockfile --silent
+            elif [ "${{ steps.detect-lock.outputs.lock }}" = "pnpm-lock.yaml" ]; then
+              echo "Using pnpm install --frozen-lockfile"
+              pnpm install --frozen-lockfile --silent
+            else
+              echo "Unknown lockfile type, falling back to npm install"
+              npm install --no-audit --no-fund
+            fi
           else
             echo "No lockfile found — running npm install (temporary fallback)"
             npm install --no-audit --no-fund

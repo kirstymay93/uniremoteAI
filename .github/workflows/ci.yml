@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    name: Build / Lint / Test
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max_old_space_size=4096"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Show environment
+        run: |
+          node -v
+          npm -v
+          pwd
+          ls -la
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "Lockfile found — running npm ci"
+            npm ci --silent
+          else
+            echo "No lockfile — running npm install (temporary fallback)"
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Lint
+        run: |
+          if npm run | grep -q "lint"; then npm run lint; else echo "No lint script — skipping"; fi
+
+      - name: Test
+        run: |
+          if npm run | grep -q "test"; then npm test --if-present; else echo "No test script — skipping"; fi
+
+      - name: Build
+        run: |
+          if npm run | grep -q "build"; then npm run build --if-present; else echo "No build script — skipping"; fi

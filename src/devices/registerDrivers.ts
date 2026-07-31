@@ -1,19 +1,11 @@
-import { driverRegistry } from './drivers/DriverRegistry';
-import { RokuDriver, RokuMetadata } from './drivers/RokuDriver';
 import type DeviceManager from './DeviceManager';
+import RokuDriver from './drivers/RokuDriver';
 
-export function registerDrivers(mgr?: DeviceManager) {
-  // Register known drivers into the central registry or via DeviceManager if provided.
+export default function registerDrivers(deviceManager: DeviceManager): void {
+  // avoid duplicate registration
+  const registry = deviceManager.getRegistry();
+  if (registry.hasDriver('roku')) return;
+
   const roku = new RokuDriver();
-  if (mgr && typeof mgr.registerDriver === 'function') {
-    mgr.registerDriver(roku as any);
-  } else {
-    driverRegistry.registerDriver(roku);
-  }
-
-  // Future drivers can be instantiated and registered here:
-  // driverRegistry.registerDriver(new FireTVDriver());
-  // driverRegistry.registerDriver(new AndroidTVDriver());
+  deviceManager.registerDriver(roku);
 }
-
-export default registerDrivers;

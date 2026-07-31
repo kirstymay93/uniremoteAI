@@ -23,23 +23,33 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Use a maintained Node LTS version. Adjust to 20/22/24 based on your app compatibility.
+          node-version: '22'
           cache: 'npm'
+          # ensure the cache keys are derived from the lockfiles present in the repo
+          cache-dependency-path: '**/package-lock.json'
 
       - name: Show environment
         run: |
-          node -v
-          npm -v
+          node -v || true
+          npm -v || true
+          yarn -v 2>/dev/null || true
           pwd
           ls -la
 
-      - name: Install dependencies
+      - name: Install dependencies (supports npm/yarn/pnpm)
         run: |
           if [ -f package-lock.json ]; then
-            echo "Lockfile found — running npm ci"
+            echo "Lockfile found (package-lock.json) — running npm ci"
             npm ci --silent
+          elif [ -f yarn.lock ]; then
+            echo "Lockfile found (yarn.lock) — running yarn install"
+            yarn install --frozen-lockfile --silent
+          elif [ -f pnpm-lock.yaml ]; then
+            echo "Lockfile found (pnpm-lock.yaml) — running pnpm install"
+            pnpm install --frozen-lockfile --silent
           else
-            echo "No lockfile — running npm install (temporary fallback)"
+            echo "No lockfile found — running npm install (temporary fallback)"
             npm install --no-audit --no-fund
           fi
 
